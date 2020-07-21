@@ -21,68 +21,26 @@ foreach (T IN ITEMS Halide_Adams2019 Halide_Li2018 Halide_Python)
     endif ()
 endforeach ()
 
-if (WIN32)
-    # We build joint debug/release packages on Windows.
-    install(TARGETS Halide Halide_Plugin Halide_Runtime ${EXTRA_TARGETS}
+# Sends Debug -> Debug, Release/MinSizeRel/RelWithDebInfo -> Release
+set(CONFIG_DIR $<IF:$<CONFIG:Debug>,Debug,Release>)
 
-            RUNTIME
-            DESTINATION ${CMAKE_INSTALL_BINDIR}/Debug
-            COMPONENT Halide_Runtime
-            CONFIGURATIONS Debug
+install(TARGETS Halide Halide_Plugin Halide_Runtime ${EXTRA_TARGETS}
+        EXPORT Halide_Targets
 
-            LIBRARY
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/Debug
-            COMPONENT Halide_Runtime
-            NAMELINK_COMPONENT Halide_Development
-            CONFIGURATIONS Debug
+        RUNTIME
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/${CONFIG_DIR}
+        COMPONENT Halide_Runtime
 
-            ARCHIVE
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/Debug
-            COMPONENT Halide_Development
-            CONFIGURATIONS Debug
+        LIBRARY
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CONFIG_DIR}
+        COMPONENT Halide_Runtime
+        NAMELINK_COMPONENT Halide_Development
 
-            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        ARCHIVE
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/${CONFIG_DIR}
+        COMPONENT Halide_Development
 
-    install(TARGETS Halide Halide_Plugin Halide_Runtime ${EXTRA_TARGETS}
-            EXPORT Halide_Targets
-
-            RUNTIME
-            DESTINATION ${CMAKE_INSTALL_BINDIR}/Release
-            COMPONENT Halide_Runtime
-            CONFIGURATIONS Release RelWithDebInfo MinSizeRel
-
-            LIBRARY
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/Release
-            COMPONENT Halide_Runtime
-            NAMELINK_COMPONENT Halide_Development
-            CONFIGURATIONS Release RelWithDebInfo MinSizeRel
-
-            ARCHIVE
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/Release
-            COMPONENT Halide_Development
-            CONFIGURATIONS Release RelWithDebInfo MinSizeRel
-
-            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-else ()
-    # Define destinations for all the targets
-    install(TARGETS Halide Halide_Plugin Halide_Runtime ${EXTRA_TARGETS}
-            EXPORT Halide_Targets
-
-            RUNTIME
-            DESTINATION ${CMAKE_INSTALL_BINDIR}
-            COMPONENT Halide_Runtime
-
-            LIBRARY
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            COMPONENT Halide_Runtime
-            NAMELINK_COMPONENT Halide_Development
-
-            ARCHIVE
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            COMPONENT Halide_Development
-
-            INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-endif ()
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(TARGETS Halide_Tools Halide_ImageIO
         EXPORT Halide_Targets
@@ -90,13 +48,6 @@ install(TARGETS Halide_Tools Halide_ImageIO
 
 install(TARGETS Halide_Generator Halide_RunGenMain
         EXPORT Halide_Targets)
-
-# Create a cmake script for importing those targets for consuming libraries.
-install(EXPORT Halide_Targets
-        DESTINATION ${HALIDE_INSTALL_CMAKEDIR}
-        NAMESPACE Halide::
-        FILE Halide-Targets.cmake
-        COMPONENT Halide_Development)
 
 # Captures both the runtime and Halide.h
 install(DIRECTORY ${Halide_BINARY_DIR}/include/ TYPE INCLUDE FILES_MATCHING PATTERN "include/*.h")
@@ -146,6 +97,13 @@ install(DIRECTORY ${Halide_SOURCE_DIR}/tutorial
 # CMake scripts
 ##
 
+# Create a cmake script for importing those targets for consuming libraries.
+install(EXPORT Halide_Targets
+        DESTINATION ${HALIDE_INSTALL_CMAKEDIR}
+        NAMESPACE Halide::
+        FILE Halide-Targets.cmake
+        COMPONENT Halide_Development)
+
 if (BUILD_SHARED_LIBS)
     # Don't need to expose LLVM-related targets
     unset(__find_LLVM_deps)
@@ -182,7 +140,5 @@ if (WIN32)
 else ()
     set(CPACK_GENERATOR "TGZ")
 endif ()
-# Remove this to get package names that are formatted as
-# ${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}.
-set(CPACK_PACKAGE_FILE_NAME "Halide" CACHE STRING "Name of package created by distrib target")
+
 include(CPack)
