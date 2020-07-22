@@ -88,6 +88,7 @@ src/.tags
 src/.tags_sorted_by_file
 
 /.vs
+/out
 /CMakeSettings.json
 /venv/
 /cmake-build-*/
