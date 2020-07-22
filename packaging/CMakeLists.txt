@@ -13,18 +13,12 @@ set(HALIDE_INSTALL_CMAKEDIR
 # Main library exports
 ##
 
-# TODO(#4053): fix when autoschedulers are refactored
-unset(EXTRA_TARGETS)
-foreach (T IN ITEMS Halide_Adams2019 Halide_Li2018 Halide_Python)
-    if (TARGET ${T})
-        list(APPEND EXTRA_TARGETS ${T})
-    endif ()
-endforeach ()
+# TODO(#4053): add autoschedulers when refactored
 
 # Sends Debug -> Debug, Release/MinSizeRel/RelWithDebInfo -> Release
 set(CONFIG_DIR $<IF:$<CONFIG:Debug>,Debug,Release>)
 
-install(TARGETS Halide Halide_Plugin Halide_Runtime ${EXTRA_TARGETS}
+install(TARGETS Halide Halide_Generator Halide_RunGenMain
         EXPORT Halide_Targets
 
         RUNTIME
@@ -43,11 +37,12 @@ install(TARGETS Halide Halide_Plugin Halide_Runtime ${EXTRA_TARGETS}
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 install(TARGETS Halide_Tools Halide_ImageIO
-        EXPORT Halide_Targets
+        EXPORT Halide_Interfaces
         INCLUDES DESTINATION ${CMAKE_INSTALL_DATADIR}/tools)
 
-install(TARGETS Halide_Generator Halide_RunGenMain
-        EXPORT Halide_Targets)
+install(TARGETS Halide_Runtime
+        EXPORT Halide_Interfaces
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # Captures both the runtime and Halide.h
 install(DIRECTORY ${Halide_BINARY_DIR}/include/ TYPE INCLUDE FILES_MATCHING PATTERN "include/*.h")
@@ -97,19 +92,26 @@ install(DIRECTORY ${Halide_SOURCE_DIR}/tutorial
 # CMake scripts
 ##
 
-# Create a cmake script for importing those targets for consuming libraries.
-install(EXPORT Halide_Targets
-        DESTINATION ${HALIDE_INSTALL_CMAKEDIR}
-        NAMESPACE Halide::
-        FILE Halide-Targets.cmake
-        COMPONENT Halide_Development)
-
 if (BUILD_SHARED_LIBS)
     # Don't need to expose LLVM-related targets
     unset(__find_LLVM_deps)
+    set(LIB_TYPE shared)
 else ()
     set(__find_LLVM_deps "find_dependency(LLVM CONFIG)")
+    set(LIB_TYPE static)
 endif ()
+
+install(EXPORT Halide_Targets
+        DESTINATION ${HALIDE_INSTALL_CMAKEDIR}
+        NAMESPACE Halide::${LIB_TYPE}::
+        FILE Halide-Targets-${LIB_TYPE}.cmake
+        COMPONENT Halide_Development)
+
+install(EXPORT Halide_Interfaces
+        DESTINATION ${HALIDE_INSTALL_CMAKEDIR}
+        NAMESPACE Halide::
+        FILE Halide-Interfaces.cmake
+        COMPONENT Halide_Development)
 
 configure_file(HalideConfig.cmake.in HalideConfig.cmake @ONLY)
 

@@ -16,7 +16,71 @@ include(CMakeFindDependencyMacro)
 find_dependency(Threads)
 @__find_LLVM_deps@
 
-include("${CMAKE_CURRENT_LIST_DIR}/Halide-Targets.cmake")
+macro(_Halide_include ARG MSG)
+    if (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/${ARG}")
+        set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE ${MSG})
+        set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+        return()
+    endif ()
+    include("${CMAKE_CURRENT_LIST_DIR}/${ARG}")
+endmacro()
+
+macro(_Halide_aliases TYPE)
+    add_library(Halide::Halide ALIAS Halide::${TYPE}::Halide)
+    add_library(Halide::Generator ALIAS Halide::${TYPE}::Generator)
+    add_library(Halide::RunGenMain ALIAS Halide::${TYPE}::RunGenMain)
+endmacro()
+
+foreach (comp IN ITEMS static shared)
+    if (comp IN_LIST ${CMAKE_FIND_PACKAGE_NAME}_comps)
+        set(${CMAKE_FIND_PACKAGE_NAME}_${comp} YES)
+        list(REMOVE_ITEM ${CMAKE_FIND_PACKAGE_NAME}_comps ${comp})
+        _Halide_include("Halide-Targets-${comp}.cmake"
+                        "Could not find Halide ${comp} libraries as requested by component")
+    endif ()
+endforeach ()
+
+if (${CMAKE_FIND_PACKAGE_NAME}_static OR ${CMAKE_FIND_PACKAGE_NAME}_shared)
+    if (NOT ${CMAKE_FIND_PACKAGE_NAME}_static)
+        # only shared requested
+        _Halide_aliases(shared)
+    elseif (NOT ${CMAKE_FIND_PACKAGE_NAME}_shared)
+        # only static requested
+        _Halide_aliases(static)
+    endif ()
+    # no aliases when both are requested.
+elseif (DEFINED ${Halide_SHARED_LIBS})
+    # Require whatever was requested
+    if (Halide_SHARED_LIBS)
+        _Halide_include("Halide-Targets-shared.cmake"
+                        "Could not find Halide shared libraries as requested by Halide_SHARED_LIBS")
+        _Halide_aliases(shared)
+    else ()
+        _Halide_include("Halide-Targets-static.cmake"
+                        "Could not find Halide static libraries as requested by Halide_SHARED_LIBS")
+        _Halide_aliases(static)
+    endif ()
+elseif (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
+    # Try shared first, then fall back to static
+    if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/Halide-Targets-shared.cmake")
+        _Halide_include("Halide-Targets-shared.cmake"
+                        "Could not find any Halide binaries. Searched for shared, static.")
+    else ()
+        _Halide_include("Halide-Targets-static.cmake"
+                        "Could not find any Halide binaries. Searched for shared, static.")
+    endif ()
+else ()
+    # Try static first, then fall back to shared
+    if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/Halide-Targets-static.cmake")
+        _Halide_include("Halide-Targets-static.cmake"
+                        "Could not find any Halide binaries. Searched for static, shared.")
+    else ()
+        _Halide_include("Halide-Targets-shared.cmake"
+                        "Could not find any Halide binaries. Searched for static, shared.")
+    endif ()
+endif ()
+
+include("${CMAKE_CURRENT_LIST_DIR}/Halide-Interfaces.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/HalideGeneratorHelpers.cmake")
 
 foreach (comp IN LISTS ${CMAKE_FIND_PACKAGE_NAME}_comps)
@@ -37,8 +101,5 @@ foreach (comp IN LISTS ${CMAKE_FIND_PACKAGE_NAME}_comps)
             list(APPEND extraArgs REQUIRED)
         endif ()
         find_package(${comp} ${extraArgs})
-        if (TARGET ${comp}::${comp})
-            set_target_properties(${comp}::${comp} PROPERTIES IMPORTED_GLOBAL TRUE)
-        endif ()
     endif ()
 endforeach ()
