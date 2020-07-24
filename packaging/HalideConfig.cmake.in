@@ -32,7 +32,6 @@ find_dependency(Threads)
 # Load common targets that do not depend on shared/static distinction
 include("${CMAKE_CURRENT_LIST_DIR}/Halide-Interfaces.cmake")
 
-
 # Helper to load targets if they exist, report failure, and create aliases when a single type was requested
 macro(_Halide_include TYPE CAUSE)
     if (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/Halide-Targets-${TYPE}.cmake")
@@ -45,6 +44,17 @@ macro(_Halide_include TYPE CAUSE)
     include("${CMAKE_CURRENT_LIST_DIR}/Halide-Targets-${TYPE}.cmake")
 
     if (NOT ${CMAKE_FIND_PACKAGE_NAME}_both)
+        # In CMake <= 3.17, ALIAS targets may not refer to non-global targets.
+        # this means that multiple different versions of Halide may not be used
+        # in a single project via find_package until 3.18
+        if (CMAKE_VERSION VERSION_LESS 3.18)
+            set_target_properties(Halide::${TYPE}::Halide
+                                  Halide::${TYPE}::Generator
+                                  Halide::${TYPE}::RunGenMain
+                                  PROPERTIES
+                                  IMPORTED_GLOBAL TRUE)
+        endif ()
+
         add_library(Halide::Halide ALIAS Halide::${TYPE}::Halide)
         add_library(Halide::Generator ALIAS Halide::${TYPE}::Generator)
         add_library(Halide::RunGenMain ALIAS Halide::${TYPE}::RunGenMain)
