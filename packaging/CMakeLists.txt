@@ -52,7 +52,6 @@ install(DIRECTORY ${Halide_BINARY_DIR}/include/ TYPE INCLUDE FILES_MATCHING PATT
 ##
 
 install(FILES
-        ${Halide_SOURCE_DIR}/CODE_OF_CONDUCT.md
         ${Halide_SOURCE_DIR}/README_cmake.md
         ${Halide_SOURCE_DIR}/README.md
         ${Halide_SOURCE_DIR}/README_rungen.md
