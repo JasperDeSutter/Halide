@@ -372,8 +372,7 @@ add_library(Halide
             ${SOURCE_FILES}
             ${HEADER_FILES}
             # Including these as sources works around the need to "install" Halide_initmod
-            $<TARGET_OBJECTS:Halide_initmod>
-            $<TARGET_OBJECTS:Halide_LLVM.obj>)
+            $<TARGET_OBJECTS:Halide_initmod>)
 add_library(Halide::Halide ALIAS Halide)
 set_target_properties(Halide PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

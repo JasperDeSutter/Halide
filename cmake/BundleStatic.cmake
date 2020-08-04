@@ -51,10 +51,9 @@ function(bundle_static)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     set(interfaceLib ${ARG_TARGET})
-    set(objectLib ${ARG_TARGET}.obj)
+    set(objectLib ${ARG_TARGET})
 
     add_library(${objectLib} OBJECT IMPORTED)
-    set_target_properties(${objectLib} PROPERTIES IMPORTED_GLOBAL TRUE)
 
     set(queue ${ARG_LIBRARIES})
     while (queue)
