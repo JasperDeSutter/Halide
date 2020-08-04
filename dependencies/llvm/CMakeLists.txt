@@ -20,7 +20,7 @@ if ("${LLVM_PACKAGE_VERSION}" VERSION_GREATER 12.0)
 endif ()
 
 set(LLVM_PACKAGE_VERSION "${LLVM_PACKAGE_VERSION}" CACHE INTERNAL "The version of the LLVM in use")
-list(APPEND LLVM_DEFINITIONS "LLVM_VERSION=${LLVM_VERSION_MAJOR}${LLVM_VERSION_MINOR}")
+list(APPEND LLVM_DEFINITIONS $<BUILD_INTERFACE:LLVM_VERSION=${LLVM_VERSION_MAJOR}${LLVM_VERSION_MINOR}>)
 
 ##
 # Promote executable targets from LLVM
@@ -61,7 +61,7 @@ foreach (comp IN LISTS known_components)
     check_llvm_target(${comp} present)
     option(${OPTION} "Include ${comp} target" ${present})
     if (${OPTION})
-        list(APPEND LLVM_DEFINITIONS ${DEFINE})
+        list(APPEND LLVM_DEFINITIONS $<BUILD_INTERFACE:${DEFINE}>)
         list(APPEND LLVM_COMPONENTS ${comp})
     endif ()
 endforeach ()

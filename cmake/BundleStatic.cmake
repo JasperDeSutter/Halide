@@ -46,7 +46,7 @@ function(bundle_static)
     add_library(${objectLib} OBJECT IMPORTED)
     set_target_properties(${objectLib} PROPERTIES IMPORTED_GLOBAL TRUE)
 
-    target_sources(${interfaceLib} INTERFACE $<TARGET_OBJECTS:${objectLib}>)
+    target_sources(${interfaceLib} INTERFACE $<BUILD_INTERFACE:$<TARGET_OBJECTS:${objectLib}>>)
 
     set(queue ${ARG_LIBRARIES})
     while (queue)
