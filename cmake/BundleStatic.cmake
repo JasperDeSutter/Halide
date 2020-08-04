@@ -85,8 +85,6 @@ function(bundle_static)
         # IMPORTED_SONAME(_<CONFIG>) # shared-only
         # INTERFACE_LINK_LIBRARIES # handled below
 
-        get_property(configs TARGET ${lib} PROPERTY IMPORTED_CONFIGURATIONS)
-
         transfer_same(PROPERTIES
                       IMPORTED_COMMON_LANGUAGE_RUNTIME
                       FROM ${lib} TO ${ARG_TARGET}.obj)
@@ -109,8 +107,7 @@ function(bundle_static)
                         INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
                         FROM ${lib} TO ${ARG_TARGET})
 
-        transfer_location(CONFIGS ${configs}
-                          FROM ${lib} TO ${ARG_TARGET}.obj)
+        transfer_locations(FROM ${lib} TO ${ARG_TARGET}.obj)
 
         get_property(deps TARGET ${lib} PROPERTY INTERFACE_LINK_LIBRARIES)
         list(APPEND queue ${deps})
@@ -157,13 +154,14 @@ function(transfer_append)
     endforeach ()
 endfunction()
 
-function(transfer_location)
+function(transfer_locations)
     set(options)
     set(oneValueArgs FROM TO)
-    set(multiValueArgs CONFIGS)
+    set(multiValueArgs)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    foreach (cfg IN LISTS ARG_CONFIGS ITEMS "")
+    get_property(configs TARGET ${ARG_FROM} PROPERTY IMPORTED_CONFIGURATIONS)
+    foreach (cfg IN LISTS configs ITEMS "")
         if (cfg)
             string(TOUPPER "_${cfg}" cfg)
         endif ()
@@ -185,9 +183,10 @@ function(unpack_static_lib)
     set(stage "${CMAKE_CURRENT_BINARY_DIR}/${stage}.obj")
 
     if (NOT EXISTS "${stage}")
-        execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${stage}")
+        file(MAKE_DIRECTORY "${stage}")
         # TODO: find something that works for Windows's lib.exe (/extract + /list)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E chdir "${stage}" ${CMAKE_AR} -x "${ARG_LIBRARY}")
+        execute_process(COMMAND ${CMAKE_AR} -x "${ARG_LIBRARY}"
+                        WORKING_DIRECTORY "${stage}")
     endif ()
 
     unset(globs)
