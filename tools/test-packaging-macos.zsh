@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/zsh
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. >/dev/null 2>&1 && pwd)"
+DIR="$(cd "$(dirname "${(%):-%N}")"/.. >/dev/null 2>&1 && pwd)"
 
 FLAGS="-DWITH_TESTS=NO -DWITH_TUTORIALS=NO -DWITH_PYTHON_BINDINGS=NO -DWITH_APPS=YES -DWITH_DOCS=NO -DWITH_UTILS=NO"
 
@@ -22,7 +22,7 @@ for HL in static shared; do
     build_dir="$DIR/build/release-$HL-$LLVM"
 
     echo HL=$HL LLVM=$LLVM
-    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ${FLAGS} ${!Halide_flags_var} ${!LLVM_flags_var} -S "$DIR" -B "$build_dir"
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ${=FLAGS} ${(P)Halide_flags_var} ${(P)LLVM_flags_var} -S "$DIR" -B ${build_dir}
     cmake --build ${build_dir} && (cd ${build_dir} && ctest -R bgu)
     echo
     echo

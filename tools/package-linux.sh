@@ -1,7 +1,6 @@
 #!/bin/bash
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DIR="$(readlink -f "$DIR/..")"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. >/dev/null 2>&1 && pwd)"
 
 [ -z "$LLVM_DIR" ] && echo "Must set specific LLVM_DIR for packaging" && exit
 
@@ -18,10 +17,10 @@ for ty in shared static; do
   for cfg in Debug Release; do
     flag_name=flag_$ty
     cmake -G Ninja -DCMAKE_BUILD_TYPE=$cfg ${!flag_name} \
-          -DLLVM_DIR="$LLVM_DIR" -DClang_DIR="$Clang_DIR" \
-          -DWITH_TESTS=NO -DWITH_APPS=NO -DWITH_TUTORIALS=NO \
-          -DWITH_DOCS=YES -DWITH_UTILS=NO -DWITH_PYTHON_BINDINGS=NO \
-          -S "$DIR" -B "$DIR/build/$ty-$cfg"
+      -DLLVM_DIR="$LLVM_DIR" -DClang_DIR="$Clang_DIR" \
+      -DWITH_TESTS=NO -DWITH_APPS=NO -DWITH_TUTORIALS=NO \
+      -DWITH_DOCS=YES -DWITH_UTILS=NO -DWITH_PYTHON_BINDINGS=NO \
+      -S "$DIR" -B "$DIR/build/$ty-$cfg"
     cmake --build "$DIR/build/$ty-$cfg"
   done
 done
