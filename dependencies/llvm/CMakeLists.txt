@@ -181,17 +181,14 @@ elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
     include(StaticToObject)
     message(STATUS "Extracting LLVM object files from static libraries.")
 
+    # Fallback configurations for weirdly built LLVMs
     set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG Debug RelWithDebInfo)
     set(CMAKE_MAP_IMPORTED_CONFIG_RELEASE Release RelWithDebInfo MinSizeRel)
 
-    llvm_map_components_to_libnames(components ${LLVM_COMPONENTS})
+    llvm_map_components_to_libnames(llvm_libs ${LLVM_COMPONENTS})
+    bundle_static(LIBRARIES ${llvm_libs} TARGET Halide_LLVM_Obj)
 
-    unset(LLVM_LIBNAMES)
-    foreach (lib IN LISTS components)
-        static_to_object(PREFIX Halide_ STATIC_TARGET ${lib} OBJECT_TARGET lib_obj)
-        list(APPEND LLVM_LIBNAMES ${lib_obj})
-    endforeach ()
-#    set(LLVM_LIBNAMES "$<BUILD_INTERFACE:${LLVM_LIBNAMES}>")
+    set(LLVM_LIBNAMES Halide_LLVM_Obj)
 else ()
     llvm_map_components_to_libnames(LLVM_LIBNAMES ${LLVM_COMPONENTS})
 endif ()

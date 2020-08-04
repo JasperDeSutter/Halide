@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 ##
-# This module provides a facility for recursively converting an
-# IMPORTED STATIC library to an IMPORTED OBJECT library.
+# This module provides a facility for recursively converting a
+# set of IMPORTED STATIC libraries to an IMPORTED OBJECT library.
 #
 # This is useful when a STATIC library produced by your project
 # depends privately on a 3rd-party STATIC library that is tricky
@@ -16,47 +16,41 @@ cmake_minimum_required(VERSION 3.16)
 # IMPORTED STATIC libraries.
 ##
 
-function(static_to_object)
+function(bundle_static)
     set(options)
-    set(oneValueArgs PREFIX STATIC_TARGET OBJECT_TARGET)
-    set(multiValueArgs)
+    set(oneValueArgs TARGET)
+    set(multiValueArgs LIBRARIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    if (NOT TARGET ${ARG_STATIC_TARGET})
-        # system library, no need to convert
-        set(${ARG_OBJECT_TARGET} ${ARG_STATIC_TARGET} PARENT_SCOPE)
-        return()
-    endif ()
+    add_library(${ARG_TARGET} OBJECT IMPORTED)
 
-    set(target "${ARG_PREFIX}${ARG_STATIC_TARGET}")
+    set(queue ${ARG_LIBRARIES})
+    while (queue)
+        list(POP_FRONT queue lib)
+        if (VISITED_${lib})
+            continue()
+        endif ()
+        set(VISITED_${lib} TRUE)
 
-    if (TARGET ${target})
-        # already processed
-        set(${ARG_OBJECT_TARGET} ${target} PARENT_SCOPE)
-        return()
-    endif ()
+        if (NOT TARGET ${lib})
+            target_link_libraries(${ARG_TARGET} INTERFACE ${lib})
+            continue()
+        endif ()
 
-    get_property(isImported TARGET ${ARG_STATIC_TARGET} PROPERTY IMPORTED)
-    get_property(type TARGET ${ARG_STATIC_TARGET} PROPERTY TYPE)
+        get_property(isImported TARGET ${lib} PROPERTY IMPORTED)
+        get_property(type TARGET ${lib} PROPERTY TYPE)
 
-    if (NOT isImported OR NOT "${type}" STREQUAL "STATIC_LIBRARY")
-        # can't convert non-imported libraries or non-static-libraries
-        set(${ARG_OBJECT_TARGET} ${ARG_STATIC_TARGET} PARENT_SCOPE)
-        return()
-    endif ()
+        if (NOT isImported OR NOT "${type}" STREQUAL "STATIC_LIBRARY")
+            target_link_libraries(${ARG_TARGET} INTERFACE ${lib})
+            continue()
+        endif ()
 
-    # Now we know we have a target which is a static, imported target
-    add_library(${target} OBJECT IMPORTED)
+        # This list should match the list of IMPORTED_ and INTERFACE_ properties documented here:
+        # https://cmake.org/cmake/help/v3.16/manual/cmake-properties.7.html#properties-on-targets
+        # Because these properties are copied from a static library to an object library,
+        # those that do not apply to both types should be skipped.
 
-    # This list should match the list of IMPORTED_ and INTERFACE_ properties documented here:
-    # https://cmake.org/cmake/help/v3.16/manual/cmake-properties.7.html#properties-on-targets
-    # Because these properties are copied from a static library to an object library,
-    # those that do not apply to both types should be skipped.
-
-    set(transfer_properties
-        IMPORTED_COMMON_LANGUAGE_RUNTIME
         # IMPORTED_CONFIGURATIONS # handled below
-        # IMPORTED_GLOBAL # handled specially - can't be set to false
         # IMPORTED_IMPLIB(_<CONFIG>) # shared-only
         # IMPORTED_LIBNAME(_<CONFIG>) # interface-only
         # IMPORTED_LINK_DEPENDENT_LIBRARIES(_<CONFIG>) # shared-only
@@ -68,72 +62,94 @@ function(static_to_object)
         # IMPORTED_OBJECTS(_<CONFIG>) # handled below
         # IMPORTED # checked above
         # IMPORTED_SONAME(_<CONFIG>) # shared-only
-        INTERFACE_AUTOUIC_OPTIONS
-        INTERFACE_COMPILE_DEFINITIONS
-        INTERFACE_COMPILE_FEATURES
-        INTERFACE_COMPILE_OPTIONS
-        INTERFACE_INCLUDE_DIRECTORIES
-        INTERFACE_LINK_DEPENDS
-        INTERFACE_LINK_DIRECTORIES
         # INTERFACE_LINK_LIBRARIES # handled below
-        INTERFACE_LINK_OPTIONS
-        INTERFACE_POSITION_INDEPENDENT_CODE
-        INTERFACE_PRECOMPILE_HEADERS
-        INTERFACE_SOURCES
-        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
 
-    foreach (p IN LISTS transfer_properties)
-        get_property(isSet TARGET ${ARG_STATIC_TARGET} PROPERTY ${p} SET)
-        if (isSet)
-            get_property(pVal TARGET ${ARG_STATIC_TARGET} PROPERTY ${p})
-            set_property(TARGET ${target} PROPERTY ${p} ${pVal})
+        get_property(configs TARGET ${lib} PROPERTY IMPORTED_CONFIGURATIONS)
+
+        transfer_same(PROPERTIES
+                      IMPORTED_COMMON_LANGUAGE_RUNTIME
+                      INTERFACE_AUTOUIC_OPTIONS
+                      INTERFACE_POSITION_INDEPENDENT_CODE
+                      IMPORTED_GLOBAL
+                      FROM ${lib} TO ${ARG_TARGET})
+
+        transfer_append(PROPERTIES
+                        INTERFACE_COMPILE_DEFINITIONS
+                        INTERFACE_COMPILE_FEATURES
+                        INTERFACE_COMPILE_OPTIONS
+                        INTERFACE_INCLUDE_DIRECTORIES
+                        INTERFACE_LINK_DEPENDS
+                        INTERFACE_LINK_DIRECTORIES
+                        INTERFACE_LINK_OPTIONS
+                        INTERFACE_PRECOMPILE_HEADERS
+                        INTERFACE_SOURCES
+                        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
+                        FROM ${lib} TO ${ARG_TARGET})
+
+        transfer_location(CONFIGS ${configs}
+                          FROM ${lib} TO ${ARG_TARGET})
+
+        get_property(deps TARGET ${lib} PROPERTY INTERFACE_LINK_LIBRARIES)
+        list(APPEND queue ${deps})
+    endwhile ()
+endfunction()
+
+function(transfer_same)
+    set(options)
+    set(oneValueArgs FROM TO PROPERTIES)
+    set(multiValueArgs)
+    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    foreach (p IN LISTS ARG_PROPERTIES)
+        get_property(fromSet TARGET ${ARG_FROM} PROPERTY ${p} SET)
+        if (NOT fromSet)
+            continue()
+        endif ()
+        get_property(fromVal TARGET ${ARG_FROM} PROPERTY ${p})
+
+        get_property(toSet TARGET ${ARG_TO} PROPERTY ${p} SET)
+        if (NOT toSet)
+            set_property(TARGET ${ARG_TO} PROPERTY ${p} ${fromVal})
+        endif ()
+
+        get_property(toVal TARGET ${ARG_TO} PROPERTY ${p})
+        if (NOT "${fromVal}" STREQUAL "${toVal}")
+            message(WARNING "Property ${p} does not agree between ${ARG_FROM} [${fromVal}] and ${ARG_TO} [${toVal}]")
         endif ()
     endforeach ()
+endfunction()
 
-    get_property(isGlobal TARGET ${ARG_STATIC_TARGET} PROPERTY IMPORTED_GLOBAL)
-    if (isGlobal)
-        set_property(TARGET ${target} PROPERTY IMPORTED_GLOBAL ${isGlobal})
-    endif ()
+function(transfer_append)
+    set(options)
+    set(oneValueArgs FROM TO PROPERTIES)
+    set(multiValueArgs)
+    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    transfer_location(FROM ${ARG_STATIC_TARGET} TO ${target})
-
-    get_property(configs TARGET ${ARG_STATIC_TARGET} PROPERTY IMPORTED_CONFIGURATIONS)
-    foreach (cfg IN LISTS configs)
-        transfer_location(FROM ${ARG_STATIC_TARGET} TO ${target}
-                          CONFIG ${cfg})
+    foreach (p IN LISTS ARG_PROPERTIES)
+        get_property(fromSet TARGET ${ARG_FROM} PROPERTY ${p} SET)
+        if (fromSet)
+            get_property(fromVal TARGET ${ARG_FROM} PROPERTY ${p})
+            set_property(TARGET ${ARG_TO} APPEND PROPERTY ${p} ${fromVal})
+        endif ()
     endforeach ()
-
-    get_property(deps TARGET ${ARG_STATIC_TARGET} PROPERTY INTERFACE_LINK_LIBRARIES)
-    foreach (dep IN LISTS deps)
-        static_to_object(PREFIX ${ARG_PREFIX}
-                         STATIC_TARGET ${dep}
-                         OBJECT_TARGET dep_obj)
-        target_link_libraries(${target} INTERFACE ${dep_obj})
-    endforeach ()
-
-    set(${ARG_OBJECT_TARGET} ${target} PARENT_SCOPE)
 endfunction()
 
 function(transfer_location)
     set(options)
-    set(oneValueArgs FROM TO CONFIG)
-    set(multiValueArgs)
+    set(oneValueArgs FROM TO)
+    set(multiValueArgs CONFIGS)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    if (ARG_CONFIG)
-        string(TOUPPER "_${ARG_CONFIG}" ARG_CONFIG)
-    endif ()
-
-    set(location_prop "IMPORTED_LOCATION${ARG_CONFIG}")
-    set(objects_prop "IMPORTED_OBJECTS${ARG_CONFIG}")
-
-    get_property(isSet TARGET ${ARG_FROM} PROPERTY ${location_prop} SET)
-    if (isSet)
-        get_property(lib TARGET ${ARG_FROM} PROPERTY ${location_prop})
-        unpack_static_lib(LIBRARY ${lib} OBJECTS objects)
-
-        set_property(TARGET ${ARG_TO} PROPERTY "${objects_prop}" ${objects})
-    endif ()
+    foreach (cfg IN LISTS ARG_CONFIGS ITEMS "")
+        if (cfg)
+            string(TOUPPER "_${cfg}" cfg)
+        endif ()
+        get_property(lib TARGET ${ARG_FROM} PROPERTY "IMPORTED_LOCATION${cfg}")
+        if (lib)
+            unpack_static_lib(LIBRARY ${lib} OBJECTS objects)
+            set_property(TARGET ${ARG_TO} APPEND PROPERTY "IMPORTED_OBJECTS${cfg}" ${objects})
+        endif ()
+    endforeach ()
 endfunction()
 
 function(unpack_static_lib)
