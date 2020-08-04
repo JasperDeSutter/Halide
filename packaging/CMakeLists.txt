@@ -93,15 +93,15 @@ install(DIRECTORY ${Halide_SOURCE_DIR}/tutorial
 # CMake scripts
 ##
 
-unset(__find_LLVM_deps)
 if (BUILD_SHARED_LIBS)
-    # Don't need to expose LLVM-related targets
     set(LIB_TYPE shared)
 else ()
-    if (NOT Halide_BUNDLE_LLVM)
-        set(__find_LLVM_deps "find_dependency(LLVM CONFIG)")
-    endif ()
     set(LIB_TYPE static)
+endif ()
+
+unset(__find_LLVM_deps)
+if (Halide_SHARED_LLVM OR (NOT BUILD_SHARED_LIBS AND NOT Halide_BUNDLE_LLVM))
+    set(__find_LLVM_deps "find_dependency(LLVM CONFIG)")
 endif ()
 
 install(EXPORT Halide_Targets

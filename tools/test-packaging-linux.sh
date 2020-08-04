@@ -32,8 +32,10 @@ for HL in static shared; do
     LLVM_flags_var=LLVM_$LLVM
     build_dir=build/release-${HL}-$LLVM
 
+    echo HL=$HL LLVM=$LLVM
     cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ${FLAGS} ${!Halide_flags_var} ${!LLVM_flags_var} -S . -B ${build_dir}
-    cmake --build ${build_dir}
-    (cd ${build_dir} && ctest -R bgu -V)
+    cmake --build ${build_dir} && (cd ${build_dir} && ctest -R bgu)
+    echo
+    echo
   done
 done
