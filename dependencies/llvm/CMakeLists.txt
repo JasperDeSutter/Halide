@@ -115,12 +115,16 @@ if (TARGET_RISCV)
     list(APPEND LLVM_COMPONENTS RISCV)
 endif ()
 
-# We don't support LLVM10 or below for wasm codegen.
+option(TARGET_WEBASSEMBLY "Include WebAssembly target" ${WITH_WEBASSEMBLY})
+
+# We don't support LLVM10 or below for wasm codegen. Forcibly turn the option off
 if (LLVM_PACKAGE_VERSION VERSION_LESS 11.0)
-    set(WITH_WEBASSEMBLY OFF)
+    if (TARGET_WEBASSEMBLY)
+        message(STATUS "WebAssembly target not supported for LLVM ${LLVM_PACKAGE_VERSION}. Disabling.")
+    endif ()
+    set(TARGET_WEBASSEMBLY OFF CACHE INTERNAL "Include WebAssembly target")
 endif ()
 
-option(TARGET_WEBASSEMBLY "Include WebAssembly target" ${WITH_WEBASSEMBLY})
 if (TARGET_WEBASSEMBLY)
     ##
     # lld libraries -- inexplicably, LLVM doesn't put these in the CMake imports,
@@ -135,7 +139,7 @@ if (TARGET_WEBASSEMBLY)
     set_target_properties(LLDCommon PROPERTIES IMPORTED_LOCATION ${LLD_COMMON})
 
     if (NOT LLD_WASM OR NOT LLD_COMMON)
-        message(WARNING 
+        message(WARNING
                 "Could not find both lldWasm and lldCommon in ${LLVM_LIBRARY_DIRS}. "
                 "Configure with -DTARGET_WEBASSEMBLY=NO to suppress. "
                 "Do you need to install liblld-${LLVM_VERSION_MAJOR}?")

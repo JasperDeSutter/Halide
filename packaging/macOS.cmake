@@ -6,4 +6,4 @@ set(CPACK_COMPONENTS_HALIDE_DEVELOPMENT Halide_Development)
 set(CPACK_INSTALL_CMAKE_PROJECTS
     static-Release Halide ALL /
     shared-Release Halide ALL /
-)
+    )

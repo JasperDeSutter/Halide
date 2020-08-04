@@ -55,7 +55,7 @@ tools/objc/*.mobileprovision
 
 
 *.txt.user*
-.idea
+.idea/
 
 # jrk editor settings
 .tm_properties

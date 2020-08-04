@@ -385,7 +385,7 @@ add_dependencies(Halide HalideIncludes)
 if (WITH_WABT)
     target_link_libraries(Halide PRIVATE wabt)
     target_compile_definitions(Halide PRIVATE WITH_WABT)
-endif()
+endif ()
 
 ##
 # Include paths for libHalide
