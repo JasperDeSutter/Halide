@@ -54,9 +54,7 @@ function(bundle_static)
     set(objectLib ${ARG_TARGET}.obj)
 
     add_library(${objectLib} OBJECT IMPORTED)
-
     set_target_properties(${objectLib} PROPERTIES IMPORTED_GLOBAL TRUE)
-    target_sources(${interfaceLib} INTERFACE $<BUILD_INTERFACE:$<TARGET_OBJECTS:${objectLib}>>)
 
     set(queue ${ARG_LIBRARIES})
     while (queue)
@@ -175,12 +173,18 @@ function(transfer_locations)
                 get_property(languages TARGET ${ARG_FROM} PROPERTY "IMPORTED_LINK_INTERFACE_LANGUAGES")
             endif ()
 
+            message(VERBOSE "Transferring ${languages}[${cfg}] objects from ${lib} to ${ARG_TO}")
+
             unset(globs)
             foreach (lang IN LISTS languages)
                 list(APPEND globs "${stage}/*${CMAKE_${lang}_OUTPUT_EXTENSION}")
             endforeach ()
 
             file(GLOB_RECURSE objects ${globs})
+
+            foreach (obj IN LISTS objects)
+                message(VERBOSE "... ${obj}")
+            endforeach ()
 
             set_property(TARGET ${ARG_TO} APPEND PROPERTY "IMPORTED_OBJECTS${cfg}" ${objects})
         endif ()

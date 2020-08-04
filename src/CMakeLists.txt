@@ -372,13 +372,17 @@ add_library(Halide
             ${SOURCE_FILES}
             ${HEADER_FILES}
             # Including these as sources works around the need to "install" Halide_initmod
-            $<TARGET_OBJECTS:Halide_initmod>)
+            $<TARGET_OBJECTS:Halide_initmod>
+            $<TARGET_OBJECTS:Halide_LLVM.obj>)
 add_library(Halide::Halide ALIAS Halide)
 set_target_properties(Halide PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(Halide PRIVATE Halide::LLVM)
 target_link_libraries(Halide PUBLIC Halide::LanguageOptions)
-target_compile_definitions(Halide PRIVATE $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,STATIC_LIBRARY>:Halide_STATIC_DEFINE>)
+
+if (NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(Halide PRIVATE Halide_STATIC_DEFINE)
+endif ()
 
 add_dependencies(Halide HalideIncludes)
 

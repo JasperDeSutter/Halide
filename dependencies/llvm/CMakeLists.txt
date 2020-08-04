@@ -2,6 +2,11 @@
 # Find LLVM and check the version.
 ##
 
+# Fallback configurations for weirdly built LLVMs
+set(CMAKE_MAP_IMPORTED_CONFIG_MINSIZEREL MinSizeRel Release RelWithDebInfo)
+set(CMAKE_MAP_IMPORTED_CONFIG_RELWITHDEBINFO RelWithDebInfo Release MinSizeRel)
+set(CMAKE_MAP_IMPORTED_CONFIG_RELEASE Release RelWithDebInfo MinSizeRel)
+
 find_package(LLVM ${HALIDE_REQUIRE_LLVM_VERSION} REQUIRED)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -180,10 +185,6 @@ if (LLVM_USE_SHARED_LLVM_LIBRARY)
 elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
     include(BundleStatic)
     message(STATUS "Extracting LLVM object files from static libraries.")
-
-    # Fallback configurations for weirdly built LLVMs
-    set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG Debug RelWithDebInfo)
-    set(CMAKE_MAP_IMPORTED_CONFIG_RELEASE Release RelWithDebInfo MinSizeRel)
 
     llvm_map_components_to_libnames(LLVM_LIBNAMES ${LLVM_COMPONENTS})
     bundle_static(LIBRARIES ${LLVM_LIBNAMES} TARGET Halide_LLVM)
