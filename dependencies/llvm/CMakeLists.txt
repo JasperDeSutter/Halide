@@ -188,10 +188,14 @@ elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
     llvm_map_components_to_libnames(llvm_libs ${LLVM_COMPONENTS})
     bundle_static(LIBRARIES ${llvm_libs} TARGET Halide_LLVM_Obj)
 
+    # Halide will link to Halide_LLVM_Obj via Halide_LLVM, which means
+    # that the object files have to be manually propagated (CMake tries
+    # to avoid duplicating .o files, so they only propagate once).
     set_target_properties(Halide_LLVM_Obj PROPERTIES IMPORTED_GLOBAL TRUE)
     target_sources(Halide_LLVM INTERFACE $<TARGET_OBJECTS:Halide_LLVM_Obj>)
 
-    unset(LLVM_LIBNAMES)
+    # Link normally for other properties.
+    set(LLVM_LIBNAMES Halide_LLVM_Obj)
 else ()
     llvm_map_components_to_libnames(LLVM_LIBNAMES ${LLVM_COMPONENTS})
 endif ()

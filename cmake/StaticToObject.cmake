@@ -160,12 +160,11 @@ function(unpack_static_lib)
 
     get_filename_component(stage "${ARG_LIBRARY}" NAME_WE)
     set(stage "${CMAKE_CURRENT_BINARY_DIR}/${stage}.obj")
-    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${stage}")
 
-    if (NOT "${CMAKE_AR}" MATCHES "ar|AR")
-        message(FATAL_ERROR "Archive tool ${CMAKE_AR} not supported by StaticToObject!")
+    if (NOT EXISTS "${stage}")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${stage}")
+        execute_process(COMMAND ${CMAKE_COMMAND} -E chdir "${stage}" ${CMAKE_AR} -x "${ARG_LIBRARY}")
     endif ()
-    execute_process(COMMAND ${CMAKE_COMMAND} -E chdir "${stage}" ${CMAKE_AR} -x "${ARG_LIBRARY}")
 
     unset(globs)
     get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
