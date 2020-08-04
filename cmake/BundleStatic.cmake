@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 ##
 # This module provides a utility for bundling a set of IMPORTED
-# STATIC libraries together.
+# STATIC libraries together as a joint IMPORTED OBJECT library.
 #
 # This is useful when a STATIC library produced by your project
 # depends privately on some 3rd-party STATIC libraries that are
@@ -17,19 +17,6 @@ cmake_minimum_required(VERSION 3.16)
 # very careful to build LLVM in _exactly_ the same way as X was
 # configured to use. While this might be acceptable in a super-
 # build, it fails when we want to release binary packages of X.
-#
-# This module scans the given IMPORTED STATIC libraries for the
-# transitive closure of all IMPORTED STATIC libraries. Next, it
-# collects the INTERFACE properties into a new INTERFACE target
-# (not IMPORTED). The archive tool then unpacks each library in
-# the closure and adds the objects to a unified IMPORTED OBJECT
-# library. The $<TARGET_OBJECTS> of this library are then added
-# to the INTERFACE_TARGET_SOURCES of the INTERFACE target.
-#
-# The INTERFACE target can then be installed alongside the rest
-# of the project _without_ exposing consumers to the particular
-# underlying objects, just their usage requirements (ie. system
-# libraries).
 ##
 
 # All of the IMPORTED_ and INTERFACE_ properties should be accounted for below.
