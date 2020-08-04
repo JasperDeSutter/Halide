@@ -1,19 +1,35 @@
 cmake_minimum_required(VERSION 3.16)
 
 ##
-# This module provides a facility for recursively converting a
-# set of IMPORTED STATIC libraries to an IMPORTED OBJECT library.
+# This module provides a utility for bundling a set of IMPORTED
+# STATIC libraries together.
 #
 # This is useful when a STATIC library produced by your project
-# depends privately on a 3rd-party STATIC library that is tricky
-# to build or distribute. Linking an OBJECT library privately to
-# your STATIC library will cause those objects to be included in
-# your library and CMake will drop the file dependencies on the
-# 3rd-party library.
+# depends privately on some 3rd-party STATIC libraries that are
+# tricky to distribute or for end-users to build. CMake handles
+# this by assuming that imported libraries will be easy to find
+# in an end-user's environment so a simple find_dependency call
+# in the package config will suffice. Unfortunately, things are
+# not so simple. Some libraries (eg. LLVM) can be built in many
+# different configurations, and dependents can be built against
+# one fixed configuration. If we have LLVM -> X -> Y where X is
+# my library and Y is some other user's library, then Y must be
+# very careful to build LLVM in _exactly_ the same way as X was
+# configured to use. While this might be acceptable in a super-
+# build, it fails when we want to release binary packages of X.
 #
-# It works by unpacking an IMPORTED STATIC library and recursively
-# walking its INTERFACE_LINK_LIBRARIES property to unpack all other
-# IMPORTED STATIC libraries.
+# This module scans the given IMPORTED STATIC libraries for the
+# transitive closure of all IMPORTED STATIC libraries. Next, it
+# collects the INTERFACE properties into a new INTERFACE target
+# (not IMPORTED). The archive tool then unpacks each library in
+# the closure and adds the objects to a unified IMPORTED OBJECT
+# library. The $<TARGET_OBJECTS> of this library are then added
+# to the INTERFACE_TARGET_SOURCES of the INTERFACE target.
+#
+# The INTERFACE target can then be installed alongside the rest
+# of the project _without_ exposing consumers to the particular
+# underlying objects, just their usage requirements (ie. system
+# libraries).
 ##
 
 function(bundle_static)
@@ -55,13 +71,13 @@ function(bundle_static)
         # those that do not apply to both types should be skipped.
 
         # IMPORTED_CONFIGURATIONS # handled below
-        # IMPORTED_GLOBAL # always true
+        # IMPORTED_GLOBAL # always true due to use of $<TARGET_OBJECTS>
         # IMPORTED_IMPLIB(_<CONFIG>) # shared-only
         # IMPORTED_LIBNAME(_<CONFIG>) # interface-only
         # IMPORTED_LINK_DEPENDENT_LIBRARIES(_<CONFIG>) # shared-only
-        # IMPORTED_LINK_INTERFACE_LANGUAGES(_<CONFIG>) # static-only
+        # IMPORTED_LINK_INTERFACE_LANGUAGES(_<CONFIG>) # static-only. irrelevant since the compiler sees the objects.
         # IMPORTED_LINK_INTERFACE_LIBRARIES(_<CONFIG>) # deprecated
-        # IMPORTED_LINK_INTERFACE_MULTIPLICITY(_<CONFIG>) # static-only
+        # IMPORTED_LINK_INTERFACE_MULTIPLICITY(_<CONFIG>) # static-only. irrelevant when all objects listed.
         # IMPORTED_LOCATION(_<CONFIG>) # handled below
         # IMPORTED_NO_SONAME(_<CONFIG>) # shared-only
         # IMPORTED_OBJECTS(_<CONFIG>) # handled below
@@ -76,11 +92,11 @@ function(bundle_static)
                       FROM ${lib} TO ${ARG_TARGET}.obj)
 
         transfer_same(PROPERTIES
-                      INTERFACE_AUTOUIC_OPTIONS
                       INTERFACE_POSITION_INDEPENDENT_CODE
                       FROM ${lib} TO ${ARG_TARGET})
 
         transfer_append(PROPERTIES
+                        INTERFACE_AUTOUIC_OPTIONS
                         INTERFACE_COMPILE_DEFINITIONS
                         INTERFACE_COMPILE_FEATURES
                         INTERFACE_COMPILE_OPTIONS
@@ -170,6 +186,7 @@ function(unpack_static_lib)
 
     if (NOT EXISTS "${stage}")
         execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory "${stage}")
+        # TODO: find something that works for Windows's lib.exe (/extract + /list)
         execute_process(COMMAND ${CMAKE_COMMAND} -E chdir "${stage}" ${CMAKE_AR} -x "${ARG_LIBRARY}")
     endif ()
 
