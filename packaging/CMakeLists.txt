@@ -44,6 +44,8 @@ install(TARGETS Halide_Runtime
         EXPORT Halide_Interfaces
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+install(TARGETS Halide_LLVM EXPORT Halide_Interfaces)
+
 # Captures both the runtime and Halide.h
 install(DIRECTORY ${Halide_BINARY_DIR}/include/ TYPE INCLUDE FILES_MATCHING PATTERN "include/*.h")
 
@@ -91,9 +93,9 @@ install(DIRECTORY ${Halide_SOURCE_DIR}/tutorial
 # CMake scripts
 ##
 
+unset(__find_LLVM_deps)
 if (BUILD_SHARED_LIBS)
     # Don't need to expose LLVM-related targets
-    unset(__find_LLVM_deps)
     set(LIB_TYPE shared)
 else ()
     if (NOT Halide_BUNDLE_LLVM)

@@ -91,8 +91,8 @@ if (TARGET_WEBASSEMBLY)
 endif ()
 
 ##
-# Create Halide::LLVM library alias based on whether we're linking to shared,
-# static, or bundled LLVM.
+# Create Halide::LLVM library alias pointing to the correct LLVM
+# among shared, static, and bundled.
 ##
 
 option(Halide_BUNDLE_LLVM "When built as a static library, include LLVM's objects." OFF)
@@ -104,9 +104,8 @@ if (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
     include(BundleStatic)
     message(STATUS "Extracting LLVM object files from static libraries.")
     bundle_static(LIBRARIES ${LLVM_LIBNAMES} TARGET Halide_LLVM)
-    target_sources(Halide_LLVM INTERFACE $<TARGET_OBJECTS:Halide_LLVM>)
 else ()
-    add_library(Halide_LLVM INTERFACE IMPORTED)
+    add_library(Halide_LLVM INTERFACE)
     if (Halide_SHARED_LLVM)
         target_link_libraries(Halide_LLVM INTERFACE LLVM)
     else ()
@@ -115,7 +114,7 @@ else ()
 endif ()
 
 # Attach the include dirs and (patched) definitions to the target, where they belong.
-set_target_properties(Halide_LLVM PROPERTIES IMPORTED_GLOBAL TRUE)
+set_target_properties(Halide_LLVM PROPERTIES EXPORT_NAME LLVM)
 target_include_directories(Halide_LLVM INTERFACE $<BUILD_INTERFACE:${LLVM_INCLUDE_DIRS}>)
 target_compile_definitions(Halide_LLVM INTERFACE ${LLVM_DEFINITIONS})
 
