@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.16)
 
 ##
 # This module provides a utility for bundling a set of IMPORTED
-# STATIC libraries together as a joint IMPORTED OBJECT library.
+# STATIC libraries together as a merged INTERFACE library that,
+# due to CMake Issue #15415, requires manual propagation to its
+# linkees, unfortunately.
 #
 # This is useful when a STATIC library produced by your project
 # depends privately on some 3rd-party STATIC libraries that are
