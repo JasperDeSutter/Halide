@@ -188,7 +188,10 @@ elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
     llvm_map_components_to_libnames(llvm_libs ${LLVM_COMPONENTS})
     bundle_static(LIBRARIES ${llvm_libs} TARGET Halide_LLVM_Obj)
 
-    set(LLVM_LIBNAMES Halide_LLVM_Obj)
+    set_target_properties(Halide_LLVM_Obj PROPERTIES IMPORTED_GLOBAL TRUE)
+    target_sources(Halide_LLVM INTERFACE $<TARGET_OBJECTS:Halide_LLVM_Obj>)
+
+    unset(LLVM_LIBNAMES)
 else ()
     llvm_map_components_to_libnames(LLVM_LIBNAMES ${LLVM_COMPONENTS})
 endif ()
