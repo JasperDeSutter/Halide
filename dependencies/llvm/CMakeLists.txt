@@ -178,7 +178,7 @@ option(Halide_BUNDLE_LLVM "When built as a static library, include LLVM's object
 if (LLVM_USE_SHARED_LLVM_LIBRARY)
     set(LLVM_LIBNAMES LLVM)
 elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
-    include(StaticToObject)
+    include(BundleStatic)
     message(STATUS "Extracting LLVM object files from static libraries.")
 
     # Fallback configurations for weirdly built LLVMs
