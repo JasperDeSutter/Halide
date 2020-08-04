@@ -372,16 +372,20 @@ add_library(Halide
             ${SOURCE_FILES}
             ${HEADER_FILES}
             # Including these as sources works around the need to "install" Halide_initmod
-            $<TARGET_OBJECTS:Halide_initmod>
-            # Ensure that object files are added if we're bundling LLVM.
-            $<$<STREQUAL:OBJECT_LIBRARY,$<TARGET_PROPERTY:Halide::LLVM,TYPE>>:$<TARGET_OBJECTS:Halide::LLVM>>)
+            $<TARGET_OBJECTS:Halide_initmod>)
 add_library(Halide::Halide ALIAS Halide)
 
 set_target_properties(Halide PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-target_link_libraries(Halide PRIVATE Halide::LLVM)
 target_link_libraries(Halide PUBLIC Halide::LanguageOptions)
 target_compile_definitions(Halide PRIVATE $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:Halide_STATIC_DEFINE>)
+
+# CMake has an issue with object libraries (needed to bundle LLVM) that
+# requires us to manually propagate relevant properties. See the upstream
+# issue here: https://gitlab.kitware.com/cmake/cmake/-/issues/15415
+target_link_libraries(Halide PRIVATE $<TARGET_PROPERTY:Halide::LLVM,INTERFACE_LINK_LIBRARIES>)
+target_include_directories(Halide PRIVATE $<TARGET_PROPERTY:Halide::LLVM,INTERFACE_INCLUDE_DIRECTORIES>)
+target_compile_definitions(Halide PRIVATE $<TARGET_PROPERTY:Halide::LLVM,INTERFACE_COMPILE_DEFINITIONS>)
+target_sources(Halide PRIVATE $<TARGET_PROPERTY:Halide::LLVM,INTERFACE_SOURCES>)
 
 add_dependencies(Halide HalideIncludes)
 
