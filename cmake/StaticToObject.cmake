@@ -22,7 +22,11 @@ function(bundle_static)
     set(multiValueArgs LIBRARIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    add_library(${ARG_TARGET} OBJECT IMPORTED)
+    add_library(${ARG_TARGET} INTERFACE)
+    add_library(${ARG_TARGET}.obj OBJECT IMPORTED)
+
+    set_target_properties(${ARG_TARGET}.obj PROPERTIES IMPORTED_GLOBAL TRUE)
+    target_sources(${ARG_TARGET} INTERFACE $<BUILD_INTERFACE:$<TARGET_OBJECTS:${ARG_TARGET}.obj>>)
 
     set(queue ${ARG_LIBRARIES})
     while (queue)
@@ -51,6 +55,7 @@ function(bundle_static)
         # those that do not apply to both types should be skipped.
 
         # IMPORTED_CONFIGURATIONS # handled below
+        # IMPORTED_GLOBAL # always true
         # IMPORTED_IMPLIB(_<CONFIG>) # shared-only
         # IMPORTED_LIBNAME(_<CONFIG>) # interface-only
         # IMPORTED_LINK_DEPENDENT_LIBRARIES(_<CONFIG>) # shared-only
@@ -68,9 +73,11 @@ function(bundle_static)
 
         transfer_same(PROPERTIES
                       IMPORTED_COMMON_LANGUAGE_RUNTIME
+                      FROM ${lib} TO ${ARG_TARGET}.obj)
+
+        transfer_same(PROPERTIES
                       INTERFACE_AUTOUIC_OPTIONS
                       INTERFACE_POSITION_INDEPENDENT_CODE
-                      IMPORTED_GLOBAL
                       FROM ${lib} TO ${ARG_TARGET})
 
         transfer_append(PROPERTIES
@@ -87,7 +94,7 @@ function(bundle_static)
                         FROM ${lib} TO ${ARG_TARGET})
 
         transfer_location(CONFIGS ${configs}
-                          FROM ${lib} TO ${ARG_TARGET})
+                          FROM ${lib} TO ${ARG_TARGET}.obj)
 
         get_property(deps TARGET ${lib} PROPERTY INTERFACE_LINK_LIBRARIES)
         list(APPEND queue ${deps})

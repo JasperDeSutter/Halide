@@ -187,15 +187,10 @@ elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
 
     llvm_map_components_to_libnames(llvm_libs ${LLVM_COMPONENTS})
     bundle_static(LIBRARIES ${llvm_libs} TARGET Halide_LLVM_Obj)
-
-    # Halide will link to Halide_LLVM_Obj via Halide_LLVM, which means
-    # that the object files have to be manually propagated (CMake tries
-    # to avoid duplicating .o files, so they only propagate once).
-    set_target_properties(Halide_LLVM_Obj PROPERTIES IMPORTED_GLOBAL TRUE)
-    target_sources(Halide_LLVM INTERFACE $<TARGET_OBJECTS:Halide_LLVM_Obj>)
-
-    # Link normally for other properties.
     set(LLVM_LIBNAMES Halide_LLVM_Obj)
+
+    # Propagate usage requirements of bundled libraries on to consumers.
+    install(TARGETS Halide_LLVM_Obj EXPORT Halide_Interfaces)
 else ()
     llvm_map_components_to_libnames(LLVM_LIBNAMES ${LLVM_COMPONENTS})
 endif ()
@@ -247,10 +242,8 @@ if (LLVM_LIBCXX GREATER -1)
                         $<$<STREQUAL:$<TARGET_PROPERTY:LINKER_LANGUAGE>,CXX>:-stdlib=libc++>)
 endif ()
 
-install(TARGETS Halide_LanguageOptions EXPORT Halide_Targets)
-
 ##
-# Install LLVM static object dependencies (not the files!) if needed.
+# Install LLVM static target dependencies (not the files!) if needed.
 ##
 
 # When building the Halide library as a static library, we have to expose
@@ -259,6 +252,5 @@ install(TARGETS Halide_LanguageOptions EXPORT Halide_Targets)
 # fully private implementation detail as far as CMake is concerned, so it
 # then doesn't need to expose any LLVM-related dependencies through targets.
 if (NOT BUILD_SHARED_LIBS)
-    install(TARGETS Halide_LLVM
-            EXPORT Halide_Targets)
+    install(TARGETS Halide_LLVM EXPORT Halide_Targets)
 endif ()
