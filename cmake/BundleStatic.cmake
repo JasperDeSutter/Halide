@@ -32,17 +32,31 @@ cmake_minimum_required(VERSION 3.16)
 # libraries).
 ##
 
+# All of the IMPORTED_ and INTERFACE_ properties should be accounted for below.
+# https://cmake.org/cmake/help/v3.16/manual/cmake-properties.7.html#properties-on-targets
+
+# Irrelevant properties:
+# IMPORTED_IMPLIB(_<CONFIG>) # shared-only
+# IMPORTED_LIBNAME(_<CONFIG>) # interface-only
+# IMPORTED_LINK_DEPENDENT_LIBRARIES(_<CONFIG>) # shared-only
+# IMPORTED_LINK_INTERFACE_LIBRARIES(_<CONFIG>) # deprecated
+# IMPORTED_LINK_INTERFACE_MULTIPLICITY(_<CONFIG>) # static-only. irrelevant when all objects listed.
+# IMPORTED_NO_SONAME(_<CONFIG>) # shared-only
+# IMPORTED_SONAME(_<CONFIG>) # shared-only
+
 function(bundle_static)
     set(options)
     set(oneValueArgs TARGET)
     set(multiValueArgs LIBRARIES)
     cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    add_library(${ARG_TARGET} INTERFACE)
-    add_library(${ARG_TARGET}.obj OBJECT IMPORTED)
+    set(interfaceLib ${ARG_TARGET})
+    set(objectLib ${ARG_TARGET}.obj)
 
-    set_target_properties(${ARG_TARGET}.obj PROPERTIES IMPORTED_GLOBAL TRUE)
-    target_sources(${ARG_TARGET} INTERFACE $<BUILD_INTERFACE:$<TARGET_OBJECTS:${ARG_TARGET}.obj>>)
+    add_library(${objectLib} OBJECT IMPORTED)
+
+    set_target_properties(${objectLib} PROPERTIES IMPORTED_GLOBAL TRUE)
+    target_sources(${interfaceLib} INTERFACE $<BUILD_INTERFACE:$<TARGET_OBJECTS:${objectLib}>>)
 
     set(queue ${ARG_LIBRARIES})
     while (queue)
@@ -53,7 +67,7 @@ function(bundle_static)
         set(VISITED_${lib} TRUE)
 
         if (NOT TARGET ${lib})
-            target_link_libraries(${ARG_TARGET} INTERFACE ${lib})
+            target_link_libraries(${interfaceLib} INTERFACE ${lib})
             continue()
         endif ()
 
@@ -61,37 +75,12 @@ function(bundle_static)
         get_property(type TARGET ${lib} PROPERTY TYPE)
 
         if (NOT isImported OR NOT "${type}" STREQUAL "STATIC_LIBRARY")
-            target_link_libraries(${ARG_TARGET} INTERFACE ${lib})
+            target_link_libraries(${interfaceLib} INTERFACE ${lib})
             continue()
         endif ()
 
-        # This list should match the list of IMPORTED_ and INTERFACE_ properties documented here:
-        # https://cmake.org/cmake/help/v3.16/manual/cmake-properties.7.html#properties-on-targets
-        # Because these properties are copied from a static library to an object library,
-        # those that do not apply to both types should be skipped.
-
-        # IMPORTED_CONFIGURATIONS # handled below
-        # IMPORTED_GLOBAL # always true due to use of $<TARGET_OBJECTS>
-        # IMPORTED_IMPLIB(_<CONFIG>) # shared-only
-        # IMPORTED_LIBNAME(_<CONFIG>) # interface-only
-        # IMPORTED_LINK_DEPENDENT_LIBRARIES(_<CONFIG>) # shared-only
-        # IMPORTED_LINK_INTERFACE_LANGUAGES(_<CONFIG>) # static-only. irrelevant since the compiler sees the objects.
-        # IMPORTED_LINK_INTERFACE_LIBRARIES(_<CONFIG>) # deprecated
-        # IMPORTED_LINK_INTERFACE_MULTIPLICITY(_<CONFIG>) # static-only. irrelevant when all objects listed.
-        # IMPORTED_LOCATION(_<CONFIG>) # handled below
-        # IMPORTED_NO_SONAME(_<CONFIG>) # shared-only
-        # IMPORTED_OBJECTS(_<CONFIG>) # handled below
-        # IMPORTED # checked above
-        # IMPORTED_SONAME(_<CONFIG>) # shared-only
-        # INTERFACE_LINK_LIBRARIES # handled below
-
-        transfer_same(PROPERTIES
-                      IMPORTED_COMMON_LANGUAGE_RUNTIME
-                      FROM ${lib} TO ${ARG_TARGET}.obj)
-
-        transfer_same(PROPERTIES
-                      INTERFACE_POSITION_INDEPENDENT_CODE
-                      FROM ${lib} TO ${ARG_TARGET})
+        transfer_same(PROPERTIES INTERFACE_POSITION_INDEPENDENT_CODE
+                      FROM ${lib} TO ${interfaceLib})
 
         transfer_append(PROPERTIES
                         INTERFACE_AUTOUIC_OPTIONS
@@ -105,9 +94,12 @@ function(bundle_static)
                         INTERFACE_PRECOMPILE_HEADERS
                         INTERFACE_SOURCES
                         INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
-                        FROM ${lib} TO ${ARG_TARGET})
+                        FROM ${lib} TO ${interfaceLib})
 
-        transfer_locations(FROM ${lib} TO ${ARG_TARGET}.obj)
+        transfer_same(PROPERTIES IMPORTED_COMMON_LANGUAGE_RUNTIME
+                      FROM ${lib} TO ${objectLib})
+
+        transfer_locations(FROM ${lib} TO ${objectLib})
 
         get_property(deps TARGET ${lib} PROPERTY INTERFACE_LINK_LIBRARIES)
         list(APPEND queue ${deps})
@@ -165,37 +157,32 @@ function(transfer_locations)
         if (cfg)
             string(TOUPPER "_${cfg}" cfg)
         endif ()
+
         get_property(lib TARGET ${ARG_FROM} PROPERTY "IMPORTED_LOCATION${cfg}")
         if (lib)
-            unpack_static_lib(LIBRARY ${lib} OBJECTS objects)
+            get_filename_component(stage "${lib}" NAME_WE)
+            set(stage "${CMAKE_CURRENT_BINARY_DIR}/${stage}.obj")
+
+            if (NOT EXISTS "${stage}")
+                file(MAKE_DIRECTORY "${stage}")
+                # TODO: find something that works for Windows's lib.exe (/extract + /list)
+                execute_process(COMMAND ${CMAKE_AR} -x "${lib}"
+                                WORKING_DIRECTORY "${stage}")
+            endif ()
+
+            get_property(languages TARGET ${ARG_FROM} PROPERTY "IMPORTED_LINK_INTERFACE_LANGUAGES${cfg}")
+            if (NOT languages)
+                get_property(languages TARGET ${ARG_FROM} PROPERTY "IMPORTED_LINK_INTERFACE_LANGUAGES")
+            endif ()
+
+            unset(globs)
+            foreach (lang IN LISTS languages)
+                list(APPEND globs "${stage}/*${CMAKE_${lang}_OUTPUT_EXTENSION}")
+            endforeach ()
+
+            file(GLOB_RECURSE objects ${globs})
+
             set_property(TARGET ${ARG_TO} APPEND PROPERTY "IMPORTED_OBJECTS${cfg}" ${objects})
         endif ()
     endforeach ()
-endfunction()
-
-function(unpack_static_lib)
-    set(options)
-    set(oneValueArgs LIBRARY OBJECTS)
-    set(multiValueArgs)
-    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    get_filename_component(stage "${ARG_LIBRARY}" NAME_WE)
-    set(stage "${CMAKE_CURRENT_BINARY_DIR}/${stage}.obj")
-
-    if (NOT EXISTS "${stage}")
-        file(MAKE_DIRECTORY "${stage}")
-        # TODO: find something that works for Windows's lib.exe (/extract + /list)
-        execute_process(COMMAND ${CMAKE_AR} -x "${ARG_LIBRARY}"
-                        WORKING_DIRECTORY "${stage}")
-    endif ()
-
-    unset(globs)
-    get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
-    foreach (lang IN LISTS languages)
-        list(APPEND globs "${stage}/*${CMAKE_${lang}_OUTPUT_EXTENSION}")
-    endforeach ()
-
-    file(GLOB_RECURSE objects ${globs})
-
-    set(${ARG_OBJECTS} "${objects}" PARENT_SCOPE)
 endfunction()

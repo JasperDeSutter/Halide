@@ -176,7 +176,7 @@ endif ()
 option(Halide_BUNDLE_LLVM "When built as a static library, include LLVM's objects." OFF)
 
 if (LLVM_USE_SHARED_LLVM_LIBRARY)
-    set(LLVM_LIBNAMES LLVM)
+    target_link_libraries(Halide_LLVM INTERFACE LLVM)
 elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
     include(BundleStatic)
     message(STATUS "Extracting LLVM object files from static libraries.")
@@ -185,17 +185,12 @@ elseif (Halide_BUNDLE_LLVM AND NOT BUILD_SHARED_LIBS)
     set(CMAKE_MAP_IMPORTED_CONFIG_DEBUG Debug RelWithDebInfo)
     set(CMAKE_MAP_IMPORTED_CONFIG_RELEASE Release RelWithDebInfo MinSizeRel)
 
-    llvm_map_components_to_libnames(llvm_libs ${LLVM_COMPONENTS})
-    bundle_static(LIBRARIES ${llvm_libs} TARGET Halide_LLVM_Obj)
-    set(LLVM_LIBNAMES Halide_LLVM_Obj)
-
-    # Propagate usage requirements of bundled libraries on to consumers.
-    install(TARGETS Halide_LLVM_Obj EXPORT Halide_Interfaces)
+    llvm_map_components_to_libnames(LLVM_LIBNAMES ${LLVM_COMPONENTS})
+    bundle_static(LIBRARIES ${LLVM_LIBNAMES} TARGET Halide_LLVM)
 else ()
     llvm_map_components_to_libnames(LLVM_LIBNAMES ${LLVM_COMPONENTS})
+    target_link_libraries(Halide_LLVM INTERFACE ${LLVM_LIBNAMES})
 endif ()
-
-target_link_libraries(Halide_LLVM INTERFACE ${LLVM_LIBNAMES})
 
 ##
 # Language options interface library
