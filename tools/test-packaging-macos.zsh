@@ -2,7 +2,10 @@
 
 DIR="$(cd "$(dirname "${(%):-%N}")"/.. >/dev/null 2>&1 && pwd)"
 
-FLAGS="-DWITH_TESTS=NO -DWITH_TUTORIALS=NO -DWITH_PYTHON_BINDINGS=NO -DWITH_APPS=YES -DWITH_DOCS=NO -DWITH_UTILS=NO"
+[ -z "$LLVM_DIR" ] && echo "Must set specific LLVM_DIR for packaging" && exit
+[ -z "$Clang_DIR" ] && echo "Must set specific Clang_DIR for packaging" && exit
+
+FLAGS="-DWITH_TESTS=NO -DWITH_TUTORIALS=NO -DWITH_PYTHON_BINDINGS=NO -DWITH_APPS=YES -DWITH_DOCS=NO -DWITH_UTILS=NO -DLLVM_DIR=$LLVM_DIR -DClang_DIR=$Clang_DIR"
 
 Halide_static="-DBUILD_SHARED_LIBS=NO"
 Halide_shared="-DBUILD_SHARED_LIBS=YES"
@@ -13,7 +16,7 @@ LLVM_shared="-DHalide_SHARED_LLVM=YES"
 
 for HL in static shared; do
   for LLVM in static bundled shared; do
-    if [ "$HL|$LLVM" == "shared|bundled" ]; then
+    if [[ "$HL|$LLVM" == "shared|bundled" ]]; then
       continue
     fi
 
